@@ -6,6 +6,7 @@ from collections import deque
 import gym
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.ops.losses.losses_impl import Reduction
 
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
@@ -33,14 +34,15 @@ class PPO2(ActorCriticRLModel):
         the number of environments run in parallel should be a multiple of nminibatches.
     :param noptepochs: (int) Number of epoch when optimizing the surrogate
     :param cliprange: (float or callable) Clipping parameter, it can be a function
+    :param use_huber_loss: (boolean) Use huber loss for the value function network instead of squarted distance.
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     """
 
     def __init__(self, policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, vf_coef=0.5,
-                 max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0,
-                 tensorboard_log=None, _init_setup_model=True):
+                 max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, use_huber_loss=False,
+                 verbose=0, tensorboard_log=None, _init_setup_model=True):
 
         super(PPO2, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
                                    _init_setup_model=_init_setup_model)
@@ -56,6 +58,7 @@ class PPO2(ActorCriticRLModel):
 
         self.learning_rate = learning_rate
         self.cliprange = cliprange
+        self.use_huber_loss = use_huber_loss
         self.n_steps = n_steps
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef
@@ -141,10 +144,14 @@ class PPO2(ActorCriticRLModel):
                     self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
                     vpred = train_model._value
-                    vpredclipped = self.old_vpred_ph + tf.clip_by_value(
-                        train_model._value - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
-                    vf_losses1 = tf.square(vpred - self.rewards_ph)
-                    vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
+                    vpredclipped = self.old_vpred_ph + tf.clip_by_value(vpred - self.old_vpred_ph,
+                                                                        - self.clip_range_ph, self.clip_range_ph)
+                    if self.use_huber_loss:
+                        vf_losses1 = tf.losses.huber_loss(self.rewards_ph, vpred, reduction=Reduction.NONE)
+                        vf_losses2 = tf.losses.huber_loss(self.rewards_ph, vpredclipped, reduction=Reduction.NONE)
+                    else:
+                        vf_losses1 = tf.square(vpred - self.rewards_ph)
+                        vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
                     self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
                     ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
                     pg_losses = -self.advs_ph * ratio
