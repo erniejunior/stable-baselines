@@ -198,8 +198,9 @@ class PPO1(ActorCriticRLModel):
                 self.episode_reward = np.zeros((self.n_envs,))
 
                 while True:
-                    if callback:
-                        callback(locals(), globals())
+                    if callback is not None:
+                        if callback(locals(), globals()) == False:
+                            break
                     if total_timesteps and timesteps_so_far >= total_timesteps:
                         break
 

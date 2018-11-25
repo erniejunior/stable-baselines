@@ -807,7 +807,8 @@ class DDPG(OffPolicyRLModel):
                             self._store_transition(obs, action, reward, new_obs, done)
                             obs = new_obs
                             if callback is not None:
-                                callback(locals(), globals())
+                                if callback(locals(), globals()) == False:
+                                    return self
 
                             if done:
                                 # Episode done.

@@ -159,7 +159,8 @@ class DQN(OffPolicyRLModel):
 
             for step in range(total_timesteps):
                 if callback is not None:
-                    callback(locals(), globals())
+                    if callback(locals(), globals()) == False:
+                        break
                 # Take action and update exploration to the newest value
                 kwargs = {}
                 if not self.param_noise:
