@@ -292,6 +292,8 @@ class ACKTR(ActorCriticRLModel):
                                                                       writer, update * (self.n_batch + 1))
 
                 if callback is not None:
+                    # Only stop training if return value is False, not when it is None. This is for backwards
+                    # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) == False:
                         break
 

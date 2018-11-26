@@ -160,6 +160,8 @@ def learn(env, policy, value_fn, gamma, lam, timesteps_per_batch, num_timesteps,
         logger.record_tabular("EpLenMean", np.mean([path["reward"].shape[0] for path in paths]))
         logger.record_tabular("KL", kl_loss)
         if callback is not None:
+            # Only stop training if return value is False, not when it is None. This is for backwards
+            # compatibility with callbacks that have no return statement.
             if callback(locals(), globals()) == False:
                 break
         logger.dump_tabular()
