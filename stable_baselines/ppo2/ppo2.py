@@ -354,6 +354,7 @@ class PPO2(ActorCriticRLModel):
             "nminibatches": self.nminibatches,
             "noptepochs": self.noptepochs,
             "cliprange": self.cliprange,
+            "use_huber_loss": self.use_huber_loss,
             "verbose": self.verbose,
             "policy": self.policy,
             "observation_space": self.observation_space,
